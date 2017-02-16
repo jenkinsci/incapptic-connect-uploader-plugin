@@ -81,9 +81,12 @@ public class AppConnectNotifier extends Notifier  {
         multipart.addFormDataPart("email", email);
         multipart.addFormDataPart("token", token);
 
+
+        int artifactCounter = 0;
         for (Run<?, ?>.Artifact artifact : artifacts) {
+            String artifactId = String.format("artifact-%d", artifactCounter++);
             RequestBody rb = RequestBody.create(mt, artifact.getFile());
-            multipart.addFormDataPart(artifact.getFileName(), artifact.getFileName(), rb);
+            multipart.addFormDataPart(artifactId, artifact.getFileName(), rb);
         }
 
         Request.Builder builder = new Request.Builder();
