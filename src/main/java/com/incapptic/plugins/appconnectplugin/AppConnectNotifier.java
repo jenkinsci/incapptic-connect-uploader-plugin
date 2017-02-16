@@ -81,10 +81,12 @@ public class AppConnectNotifier extends Notifier  {
         multipart.addFormDataPart("email", email);
         multipart.addFormDataPart("token", token);
 
-
         int artifactCounter = 0;
         for (Run<?, ?>.Artifact artifact : artifacts) {
             String artifactId = String.format("artifact-%d", artifactCounter++);
+            listener.getLogger().println(
+                    String.format("Artifact %s being sent to Incapptic Appconnect", artifact.getFileName()));
+
             RequestBody rb = RequestBody.create(mt, artifact.getFile());
             multipart.addFormDataPart(artifactId, artifact.getFileName(), rb);
         }
@@ -99,9 +101,10 @@ public class AppConnectNotifier extends Notifier  {
 
         if(!response.isSuccessful()) {
             String msg = String.format("Endpoint %s replied with code %d", url, response.code());
-            throw new IOException(msg);
+            throw new AppConnectException(msg);
         }
 
+        listener.getLogger().println("Artifacts scheduled in Incapptic Appconnect");
         return true;
     }
 
