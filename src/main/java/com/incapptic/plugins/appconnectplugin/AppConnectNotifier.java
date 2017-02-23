@@ -81,7 +81,7 @@ public class AppConnectNotifier extends Recorder implements Serializable {
                 FilePath artifact = getArtifact(build, ac.getName(), listener.getLogger());
 
                 listener.getLogger().println(
-                        String.format("Artifact %s being sent to Incapptic Appconnect", artifact.getName()));
+                        String.format("  Artifact %s being sent to Incapptic Appconnect", artifact.getName()));
 
                 File tmp = File.createTempFile("artifact", "tmp");
 
@@ -104,16 +104,16 @@ public class AppConnectNotifier extends Recorder implements Serializable {
                 Response response = client.newCall(request).execute();
 
                 if(!response.isSuccessful()) {
-                    String msg = String.format("Endpoint %s replied with code %d", ac.getUrl(), response.code());
+                    String msg = String.format("  Endpoint %s replied with code %d", ac.getUrl(), response.code());
                     throw new AppConnectException(msg);
                 }
 
             } catch (MultipleArtifactsException e) {
-                String msg = String.format("Multiple artifacts found for name %s", ac.getName());
+                String msg = String.format("  Multiple artifacts found for name %s", ac.getName());
                 listener.getLogger().println(msg);
                 return true;
             } catch (ArtifactsNotFoundException e) {
-                String msg = String.format("No artifacts found for name %s", ac.getName());
+                String msg = String.format("  No artifacts found for name %s", ac.getName());
                 listener.getLogger().println(msg);
                 return true;
             } catch (InterruptedException e) {
