@@ -70,6 +70,11 @@ public class AppConnectNotifier extends Recorder implements Serializable {
         multipart.type(MultipartBuilder.FORM);
         multipart.addFormDataPart("token", token);
 
+        if (getArtifactConfigList().isEmpty()) {
+            listener.getLogger().format("No artifacts configured.");
+            return true;
+        }
+
         for(ArtifactConfig ac: getArtifactConfigList()) {
             try {
                 byte[] bytes;
