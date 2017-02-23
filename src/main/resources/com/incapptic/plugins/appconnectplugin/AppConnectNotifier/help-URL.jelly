@@ -1,0 +1,4 @@
+<?jelly escape-by-default='true'?>
+<div>
+    Enter upload service endpoint for your Incapptic Appconnect application.
+</div>

@@ -26,6 +26,7 @@
          ~ hpi-plugin.version: The HPI Maven Plugin version used by the plugin..
          ~ stapler-plugin.version: The Stapler Maven plugin version required by the plugin.
     -->
+    <commons-io.version>2.5</commons-io.version>
     <commons-validator.version>1.4.0</commons-validator.version>
     <okhttp.version>2.7.5</okhttp.version>
   </properties>
@@ -70,6 +71,11 @@
   </pluginRepositories>
 
   <dependencies>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>${commons-io.version}</version>
+    </dependency>
     <dependency>
       <groupId>commons-validator</groupId>
       <artifactId>commons-validator</artifactId>
