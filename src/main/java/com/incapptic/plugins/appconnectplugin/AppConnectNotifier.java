@@ -11,6 +11,7 @@ import hudson.tasks.Publisher;
 import hudson.tasks.Recorder;
 import hudson.util.FormValidation;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.validator.routines.UrlValidator;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -165,8 +166,6 @@ public class AppConnectNotifier extends Recorder implements Serializable {
     public static final class DescriptorImpl
             extends BuildStepDescriptor<Publisher> { // Publisher because Notifiers are a type of publisher
 
-        public static final UrlValidator URL_VALIDATOR = new UrlValidator(new String[] {"https", "http"});
-
         public DescriptorImpl() {
             super(AppConnectNotifier.class);
         }
@@ -181,10 +180,9 @@ public class AppConnectNotifier extends Recorder implements Serializable {
             return true;
         }
 
-        public FormValidation doCheckUrl(@QueryParameter String value) {
-            if (!URL_VALIDATOR.isValid(value)) {
-                return FormValidation.error("Invalid URL");
-
+        public FormValidation doCheckToken(@QueryParameter String token) {
+            if (StringUtils.isEmpty(token)) {
+                return FormValidation.error("Empty token");
             }
             return FormValidation.ok();
         }
@@ -222,6 +220,15 @@ public class AppConnectNotifier extends Recorder implements Serializable {
         public static class DescriptorImpl extends Descriptor<ArtifactConfig> {
             @Override
             public String getDisplayName() { return ""; }
+
+            public static final UrlValidator URL_VALIDATOR = new UrlValidator(new String[] {"https", "http"});
+
+            public FormValidation doCheckUrl(@QueryParameter String value) {
+                if (!URL_VALIDATOR.isValid(value)) {
+                    return FormValidation.error("Invalid URL");
+                }
+                return FormValidation.ok();
+            }
         }
     }
 }
