@@ -97,6 +97,7 @@ public class AppConnectNotifier extends Recorder implements Serializable {
                 multipart.addFormDataPart("artifact", artifact.getName(), rb);
 
                 Request.Builder builder = new Request.Builder();
+                builder.addHeader("X-Appconnect-Token", token);
                 builder.url(ac.getUrl());
                 builder.post(multipart.build());
 
