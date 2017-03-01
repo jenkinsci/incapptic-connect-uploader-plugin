@@ -28,6 +28,7 @@ import java.util.List;
  * @author Tomasz Jurkiewicz
  */
 public class AppConnectNotifier extends Recorder implements Serializable {
+    public static final String TOKEN_HEADER_NAME = "X-Connect-Token";
     private static final long serialVersionUID = 1L;
 
     public static final MediaType MEDIA_TYPE = MediaType.parse("application/octet-stream");
@@ -97,7 +98,7 @@ public class AppConnectNotifier extends Recorder implements Serializable {
                 multipart.addFormDataPart("artifact", artifact.getName(), rb);
 
                 Request.Builder builder = new Request.Builder();
-                builder.addHeader("X-Appconnect-Token", token);
+                builder.addHeader(TOKEN_HEADER_NAME, token);
                 builder.url(ac.getUrl());
                 builder.post(multipart.build());
 
