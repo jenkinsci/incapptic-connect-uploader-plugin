@@ -70,7 +70,6 @@ public class AppConnectNotifier extends Recorder implements Serializable {
 
         MultipartBuilder multipart = new MultipartBuilder();
         multipart.type(MultipartBuilder.FORM);
-        multipart.addFormDataPart("token", token);
 
         if (getArtifactConfigList().isEmpty()) {
             listener.getLogger().format("No artifacts configured.");
@@ -83,7 +82,7 @@ public class AppConnectNotifier extends Recorder implements Serializable {
                 FilePath artifact = getArtifact(build, ac.getName(), listener.getLogger());
 
                 listener.getLogger().println(
-                        String.format("  Artifact %s being sent to Incapptic Appconnect", artifact.getName()));
+                        String.format("  Artifact %s being sent to Incapptic Connect", artifact.getName()));
 
                 File tmp = File.createTempFile("artifact", "tmp");
 
@@ -107,8 +106,16 @@ public class AppConnectNotifier extends Recorder implements Serializable {
                 Response response = client.newCall(request).execute();
 
                 if(!response.isSuccessful()) {
-                    String msg = String.format("  Endpoint %s replied with code %d", ac.getUrl(), response.code());
-                    throw new AppConnectException(msg);
+                    if (response.code() < 500) {
+                        String body = IOUtils.toString(response.body().byteStream(), "UTF-8");
+                        throw new AppConnectException(String.format(
+                                "  Endpoint %s replied with code %d and message %s",
+                                ac.getUrl(), response.code(), body));
+                    } else {
+                        String msg = String.format("  Endpoint %s replied with code %d",
+                                ac.getUrl(), response.code());
+                        throw new AppConnectException(msg);
+                    }
                 }
 
             } catch (MultipleArtifactsException e) {
