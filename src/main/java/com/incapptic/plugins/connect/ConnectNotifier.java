@@ -1,4 +1,4 @@
-package com.incapptic.plugins.appconnectplugin;
+package com.incapptic.plugins.connect;
 
 import com.squareup.okhttp.*;
 import hudson.Extension;
@@ -27,7 +27,7 @@ import java.util.List;
 /**
  * @author Tomasz Jurkiewicz
  */
-public class AppConnectNotifier extends Recorder implements Serializable {
+public class ConnectNotifier extends Recorder implements Serializable {
     public static final String TOKEN_HEADER_NAME = "X-Connect-Token";
     private static final long serialVersionUID = 1L;
 
@@ -38,7 +38,7 @@ public class AppConnectNotifier extends Recorder implements Serializable {
 
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public AppConnectNotifier(String url, String token, List<ArtifactConfig> artifactConfigList) {
+    public ConnectNotifier(String url, String token, List<ArtifactConfig> artifactConfigList) {
         this.token = token;
         this.artifactConfigList = artifactConfigList;
     }
@@ -82,6 +82,7 @@ public class AppConnectNotifier extends Recorder implements Serializable {
         }
 
         for(ArtifactConfig ac: getArtifactConfigList()) {
+            // TODO: fail fast here please.
             try {
                 byte[] bytes;
                 FilePath artifact = getArtifact(build, ac.getName(), listener.getLogger());
@@ -113,7 +114,7 @@ public class AppConnectNotifier extends Recorder implements Serializable {
                     if (response.code() < 500) {
                         String body = IOUtils.toString(response.body().byteStream(), "UTF-8");
                         OutputUtils.error(logger, String.format(
-                                "Endpoint %s replied with code %d and message %s.",
+                                "Endpoint %s replied with code %d and message [%s].",
                                 ac.getUrl(), response.code(), body));
                     } else {
                         OutputUtils.error(logger, String.format(
@@ -127,10 +128,10 @@ public class AppConnectNotifier extends Recorder implements Serializable {
 
             } catch (MultipleArtifactsException e) {
                 OutputUtils.error(logger, String.format(
-                        "Multiple artifacts found for name %s.", ac.getName()));
+                        "Multiple artifacts found for name [%s].", ac.getName()));
             } catch (ArtifactsNotFoundException e) {
                 OutputUtils.error(logger, String.format(
-                        "No artifacts found for name %s.", ac.getName()));
+                        "No artifacts found for name [%s].", ac.getName()));
             } catch (InterruptedException e) {
                 OutputUtils.error(logger, "Interrupted.");
             }
@@ -179,12 +180,12 @@ public class AppConnectNotifier extends Recorder implements Serializable {
             extends BuildStepDescriptor<Publisher> { // Publisher because Notifiers are a type of publisher
 
         public DescriptorImpl() {
-            super(AppConnectNotifier.class);
+            super(ConnectNotifier.class);
         }
 
         @Override
         public String getDisplayName() {
-            return "Incapptic AppConnect Publisher";
+            return "Incapptic Connect Publisher";
         }
 
         @Override

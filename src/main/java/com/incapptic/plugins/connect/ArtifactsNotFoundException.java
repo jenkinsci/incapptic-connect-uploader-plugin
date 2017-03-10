@@ -1,4 +1,4 @@
-package com.incapptic.plugins.appconnectplugin;
+package com.incapptic.plugins.connect;
 
 /**
  * Created by tjurkiewicz on 23/02/2017.

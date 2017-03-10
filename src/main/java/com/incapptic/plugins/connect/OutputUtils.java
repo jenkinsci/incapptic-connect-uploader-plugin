@@ -1,4 +1,4 @@
-package com.incapptic.plugins.appconnectplugin;
+package com.incapptic.plugins.connect;
 
 import java.io.PrintStream;
 
