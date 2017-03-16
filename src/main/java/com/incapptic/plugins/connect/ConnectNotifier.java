@@ -34,18 +34,26 @@ public class ConnectNotifier extends Recorder implements Serializable {
     public static final MediaType MEDIA_TYPE = MediaType.parse("application/octet-stream");
 
     private String token;
+    private String url;
+
     private List<ArtifactConfig> artifactConfigList;
 
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public ConnectNotifier(String url, String token, List<ArtifactConfig> artifactConfigList) {
+    public ConnectNotifier(String token, String url, List<ArtifactConfig> artifactConfigList) {
         this.token = token;
+        this.url = url;
         this.artifactConfigList = artifactConfigList;
     }
 
     public String getToken() {
         return token;
     }
+
+    public String getUrl() {
+        return url;
+    }
+
 
     public List<ArtifactConfig> getArtifactConfigList() {
         if (artifactConfigList == null) {
@@ -82,14 +90,14 @@ public class ConnectNotifier extends Recorder implements Serializable {
         }
 
         for(ArtifactConfig ac: getArtifactConfigList()) {
-            // TODO: fail fast here please.
             try {
                 byte[] bytes;
                 FilePath artifact = getArtifact(build, ac.getName(), listener.getLogger());
                 outputUtil.info(String.format(
                         "Artifact %s being sent to Incapptic Connect.", artifact.getName()));
 
-                File tmp = File.createTempFile("artifact", "tmp");
+                String ident = String.format("artifact-%d", ac.getAppId());
+                File tmp = File.createTempFile(ident, "tmp");
 
                 try(OutputStream os = new FileOutputStream(tmp)) {
                     artifact.copyTo(os);
@@ -101,30 +109,6 @@ public class ConnectNotifier extends Recorder implements Serializable {
                 RequestBody rb = RequestBody.create(MEDIA_TYPE, bytes);
                 multipart.addFormDataPart("artifact", artifact.getName(), rb);
 
-                Request.Builder builder = new Request.Builder();
-                builder.addHeader(TOKEN_HEADER_NAME, token);
-                builder.url(ac.getUrl());
-                builder.post(multipart.build());
-
-                Request request = builder.build();
-                OkHttpClient client = new OkHttpClient();
-                Response response = client.newCall(request).execute();
-
-                if(!response.isSuccessful()) {
-                    if (response.code() < 500) {
-                        String body = IOUtils.toString(response.body().byteStream(), "UTF-8");
-                        outputUtil.error(String.format(
-                                "Endpoint %s replied with code %d and message [%s].",
-                                ac.getUrl(), response.code(), body));
-                    } else {
-                        outputUtil.error(String.format(
-                                "Endpoint %s replied with code %d.",
-                                ac.getUrl(), response.code()));
-                    }
-                } else {
-                    outputUtil.success(String.format(
-                            "Artifact %s sent to Connect", artifact.getName()));
-                }
 
             } catch (MultipleArtifactsException e) {
                 outputUtil.error(String.format(
@@ -138,7 +122,30 @@ public class ConnectNotifier extends Recorder implements Serializable {
 
         }
 
-        outputUtil.info("-----* All artifacts processed. *-----");
+        Request.Builder builder = new Request.Builder();
+        builder.addHeader(TOKEN_HEADER_NAME, token);
+        builder.url(url);
+        builder.post(multipart.build());
+
+        Request request = builder.build();
+        OkHttpClient client = new OkHttpClient();
+        Response response = client.newCall(request).execute();
+
+        if(!response.isSuccessful()) {
+            if (response.code() < 500) {
+                String body = IOUtils.toString(response.body().byteStream(), "UTF-8");
+                outputUtil.error(String.format(
+                        "Endpoint %s replied with code %d and message [%s].",
+                        url, response.code(), body));
+            } else {
+                outputUtil.error(String.format(
+                        "Endpoint %s replied with code %d.",
+                        url, response.code()));
+            }
+        } else {
+            outputUtil.success("All artifacts sent to Connect");
+        }
+
         return true;
     }
 
@@ -205,12 +212,12 @@ public class ConnectNotifier extends Recorder implements Serializable {
         private static final long serialVersionUID = 1L;
 
         private String name;
-        private String url;
+        private String appId;
 
         @DataBoundConstructor
-        public ArtifactConfig(String name, String url) {
+        public ArtifactConfig(String name, String appId) {
             this.name = name;
-            this.url = url;
+            this.appId = appId;
         }
 
         public String getName() {
@@ -221,12 +228,12 @@ public class ConnectNotifier extends Recorder implements Serializable {
             this.name = name;
         }
 
-        public String getUrl() {
-            return url;
+        public String getAppId() {
+            return appId;
         }
 
-        public void setUrl(String url) {
-            this.url = url;
+        public void setAppId(String appId) {
+            this.appId = appId;
         }
 
         @Extension

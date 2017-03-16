@@ -3,13 +3,16 @@
   <f:entry title="Personal token" field="token">
     <f:password />
   </f:entry>
+  <f:entry title="Upload URL" field="url">
+    <f:textbox />
+  </f:entry>
   <f:entry title="Artifacts" field="artifactConfigList" description="Add artifact configuration">
     <f:repeatable field="artifactConfigList" add="Add artifact">
       <table width="100%">
         <f:entry field="name" title="Artifact">
           <f:textbox />
         </f:entry>
-        <f:entry field="url" title="App publish url">
+        <f:entry field="appId" title="Application Id">
           <f:textbox />
         </f:entry>
       </table>
