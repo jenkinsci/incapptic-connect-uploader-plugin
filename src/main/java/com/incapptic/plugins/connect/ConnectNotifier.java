@@ -63,13 +63,13 @@ public class ConnectNotifier extends Recorder implements Serializable {
 
     @Override
     public boolean perform(AbstractBuild<?,?> build, Launcher launcher, BuildListener listener) throws IOException {
-        PrintStream logger = listener.getLogger();
+        OutputUtils outputUtil = OutputUtils.getLoggerForStream(listener.getLogger());
 
-        OutputUtils.info(logger, "-----* Connect plugin is processing build artifacts *-----");
+        outputUtil.info("-----* Connect plugin is processing build artifacts *-----");
 
 
         if (build.getResult().isWorseOrEqualTo(Result.FAILURE)) {
-            OutputUtils.error(logger, "Cannot send artifacts from failed build.");
+            outputUtil.error("Cannot send artifacts from failed build.");
             return true;
         }
 
@@ -77,7 +77,7 @@ public class ConnectNotifier extends Recorder implements Serializable {
         multipart.type(MultipartBuilder.FORM);
 
         if (getArtifactConfigList().isEmpty()) {
-            OutputUtils.info(logger, "No artifacts configured.");
+            outputUtil.info("No artifacts configured.");
             return true;
         }
 
@@ -86,7 +86,7 @@ public class ConnectNotifier extends Recorder implements Serializable {
             try {
                 byte[] bytes;
                 FilePath artifact = getArtifact(build, ac.getName(), listener.getLogger());
-                OutputUtils.info(logger, String.format(
+                outputUtil.info(String.format(
                         "Artifact %s being sent to Incapptic Connect.", artifact.getName()));
 
                 File tmp = File.createTempFile("artifact", "tmp");
@@ -113,32 +113,32 @@ public class ConnectNotifier extends Recorder implements Serializable {
                 if(!response.isSuccessful()) {
                     if (response.code() < 500) {
                         String body = IOUtils.toString(response.body().byteStream(), "UTF-8");
-                        OutputUtils.error(logger, String.format(
+                        outputUtil.error(String.format(
                                 "Endpoint %s replied with code %d and message [%s].",
                                 ac.getUrl(), response.code(), body));
                     } else {
-                        OutputUtils.error(logger, String.format(
+                        outputUtil.error(String.format(
                                 "Endpoint %s replied with code %d.",
                                 ac.getUrl(), response.code()));
                     }
                 } else {
-                    OutputUtils.success(logger, String.format(
+                    outputUtil.success(String.format(
                             "Artifact %s sent to Connect", artifact.getName()));
                 }
 
             } catch (MultipleArtifactsException e) {
-                OutputUtils.error(logger, String.format(
+                outputUtil.error(String.format(
                         "Multiple artifacts found for name [%s].", ac.getName()));
             } catch (ArtifactsNotFoundException e) {
-                OutputUtils.error(logger, String.format(
+                outputUtil.error(String.format(
                         "No artifacts found for name [%s].", ac.getName()));
             } catch (InterruptedException e) {
-                OutputUtils.error(logger, "Interrupted.");
+                outputUtil.error("Interrupted.");
             }
 
         }
 
-        OutputUtils.info(logger, "-----* All artifacts processed. *-----");
+        outputUtil.info("-----* All artifacts processed. *-----");
         return true;
     }
 

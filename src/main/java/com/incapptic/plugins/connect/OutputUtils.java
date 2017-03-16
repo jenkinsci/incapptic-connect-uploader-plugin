@@ -1,6 +1,8 @@
 package com.incapptic.plugins.connect;
 
 import java.io.PrintStream;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by tjurkiewicz on 07/03/2017.
@@ -10,20 +12,35 @@ public class OutputUtils {
     public static final String INFO    = "[Info]   ";
     public static final String SUCCESS = "[Success]";
 
+    private final PrintStream printStream;
 
-    private static void print(PrintStream printStream, String prefix, String message) {
+    private static Map<Integer, OutputUtils> INSTANCES = new HashMap<>();
+
+    static OutputUtils getLoggerForStream(PrintStream stream) {
+        if (!INSTANCES.containsKey(stream.hashCode())) {
+            INSTANCES.put(stream.hashCode(), new OutputUtils(stream));
+        }
+        return INSTANCES.get(stream.hashCode());
+    }
+
+    private OutputUtils(PrintStream printStream) {
+        this.printStream = printStream;
+    }
+
+
+    private void print(String prefix, String message) {
         printStream.println(String.format("%s %s", prefix, message));
     }
 
-    public static void info(PrintStream printStream, String message) {
-        print(printStream, INFO, message);
+    void info(String message) {
+        print(INFO, message);
     }
 
-    public static void error(PrintStream printStream, String message) {
-        print(printStream, ERROR, message);
+    void error(String message) {
+        print(ERROR, message);
     }
 
-    public static void success(PrintStream printStream, String message) {
-        print(printStream, SUCCESS, message);
+    void success(String message) {
+        print(SUCCESS, message);
     }
 }
