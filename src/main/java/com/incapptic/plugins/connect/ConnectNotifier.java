@@ -96,7 +96,7 @@ public class ConnectNotifier extends Recorder implements Serializable {
                 outputUtil.info(String.format(
                         "Artifact %s being sent to Incapptic Connect.", artifact.getName()));
 
-                String ident = String.format("artifact-%d", ac.getAppId());
+                String ident = String.format("artifact-%s", ac.getAppId());
                 File tmp = File.createTempFile(ident, "tmp");
 
                 try(OutputStream os = new FileOutputStream(tmp)) {
