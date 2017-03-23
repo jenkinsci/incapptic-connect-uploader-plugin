@@ -107,7 +107,7 @@ public class ConnectNotifier extends Recorder implements Serializable {
                 }
 
                 RequestBody rb = RequestBody.create(MEDIA_TYPE, bytes);
-                multipart.addFormDataPart("artifact", artifact.getName(), rb);
+                multipart.addFormDataPart(ident, artifact.getName(), rb);
 
 
             } catch (MultipleArtifactsException e) {
