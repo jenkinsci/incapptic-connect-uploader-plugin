@@ -15,12 +15,22 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.validator.routines.UrlValidator;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import sun.security.ssl.SSLSocketFactoryImpl;
 
+import javax.net.ssl.*;
 import java.io.*;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,7 +64,6 @@ public class ConnectNotifier extends Recorder implements Serializable {
         return url;
     }
 
-
     public List<ArtifactConfig> getArtifactConfigList() {
         if (artifactConfigList == null) {
             return new ArrayList<>();
@@ -66,7 +75,6 @@ public class ConnectNotifier extends Recorder implements Serializable {
     public BuildStepMonitor getRequiredMonitorService() {
         return BuildStepMonitor.NONE;
     }
-
 
 
     @Override
@@ -129,6 +137,7 @@ public class ConnectNotifier extends Recorder implements Serializable {
 
         Request request = builder.build();
         OkHttpClient client = new OkHttpClient();
+
         Response response = client.newCall(request).execute();
 
         if(!response.isSuccessful()) {
