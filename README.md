@@ -1,4 +1,4 @@
-# jenkins-appconnect
+# Connect Uploader Plugin
 
 Integrate the AppConnect platform with Jenkins. Upload artifacts automatically to the AppConnect platform after each successful output from Jenkins CI.
 
