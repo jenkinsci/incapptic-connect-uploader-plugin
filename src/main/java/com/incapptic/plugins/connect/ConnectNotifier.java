@@ -2,21 +2,23 @@ package com.incapptic.plugins.connect;
 
 import com.squareup.okhttp.*;
 import hudson.Extension;
+import hudson.ExtensionPoint;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.*;
-import hudson.tasks.BuildStepDescriptor;
-import hudson.tasks.BuildStepMonitor;
-import hudson.tasks.Publisher;
-import hudson.tasks.Recorder;
+import hudson.tasks.*;
 import hudson.util.FormValidation;
+import jenkins.tasks.SimpleBuildStep;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.validator.routines.UrlValidator;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import sun.security.ssl.SSLSocketFactoryImpl;
 
+import javax.annotation.Nonnull;
 import javax.net.ssl.*;
 import java.io.*;
 import java.net.InetAddress;
@@ -37,7 +39,7 @@ import java.util.List;
 /**
  * @author Tomasz Jurkiewicz
  */
-public class ConnectNotifier extends Recorder implements Serializable {
+public class ConnectNotifier extends Recorder implements Serializable, SimpleBuildStep {
     public static final String TOKEN_HEADER_NAME = "X-Connect-Token";
     private static final long serialVersionUID = 1L;
 
@@ -45,15 +47,16 @@ public class ConnectNotifier extends Recorder implements Serializable {
 
     private String token;
     private String url;
-
-    private List<ArtifactConfig> artifactConfigList;
+    private Integer appId;
+    private String mask;
 
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public ConnectNotifier(String token, String url, List<ArtifactConfig> artifactConfigList) {
+    public ConnectNotifier(String token, String url, Integer appId, String mask) {
         this.token = token;
         this.url = url;
-        this.artifactConfigList = artifactConfigList;
+        this.appId = appId;
+        this.mask = mask;
     }
 
     public String getToken() {
@@ -64,74 +67,104 @@ public class ConnectNotifier extends Recorder implements Serializable {
         return url;
     }
 
-    public List<ArtifactConfig> getArtifactConfigList() {
-        if (artifactConfigList == null) {
-            return new ArrayList<>();
+    public Integer getAppId() { return appId; }
+
+    public String getMask() { return mask; }
+
+    private String getToken(@Nonnull Run<?, ?> run) {
+        if (StringUtils.isEmpty(getToken())) {
+            Object tokenValue = getParameterValue(run, "token");
+            if (tokenValue != null) {
+                token = tokenValue.toString();
+            }
         }
-        return artifactConfigList;
+        return token;
     }
+
+    private Object getParameterValue(@Nonnull Run<?, ?> run, String name) {
+        for(Action ac: run.getAllActions()) {
+            if (ac instanceof ParametersAction) {
+                ParametersAction pac = (ParametersAction) ac;
+                for(ParameterValue pav: pac.getParameters()) {
+                    if (name != null && name.equals(pav.getName())) {
+                        return pav.getValue();
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
 
     @Override
     public BuildStepMonitor getRequiredMonitorService() {
         return BuildStepMonitor.NONE;
     }
 
-
     @Override
-    public boolean perform(AbstractBuild<?,?> build, Launcher launcher, BuildListener listener) throws IOException {
-        OutputUtils outputUtil = OutputUtils.getLoggerForStream(listener.getLogger());
+    public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath filePath, @Nonnull Launcher launcher, @Nonnull TaskListener taskListener) throws InterruptedException, IOException {
+        OutputUtils outputUtil = OutputUtils.getLoggerForStream(taskListener.getLogger());
 
         outputUtil.info("-----* Connect plugin is processing build artifacts *-----");
-
-
-        if (build.getResult().isWorseOrEqualTo(Result.FAILURE)) {
+        if (run.getResult() != null && run.getResult().isWorseOrEqualTo(Result.FAILURE)) {
             outputUtil.error("Cannot send artifacts from failed build.");
-            return true;
+            return;
+        }
+
+        if (getAppId() == null) {
+            outputUtil.error("No appId parameter provided.");
+            return;
+        }
+        if (StringUtils.isEmpty(getMask())) {
+            outputUtil.error("No mask parameter provided.");
+            return;
+        }
+        if (StringUtils.isEmpty(getToken(run))) {
+            outputUtil.error("No token parameter provided.");
+            return;
+        }
+        if (StringUtils.isEmpty(getUrl())) {
+            outputUtil.error("No url parameter provided.");
+            return;
         }
 
         MultipartBuilder multipart = new MultipartBuilder();
         multipart.type(MultipartBuilder.FORM);
 
-        if (getArtifactConfigList().isEmpty()) {
-            outputUtil.info("No artifacts configured.");
-            return true;
-        }
+        try {
+            byte[] bytes;
+            FilePath artifact = getArtifact(filePath, getMask(), taskListener.getLogger());
+            outputUtil.info(String.format(
+                    "Artifact %s being sent to Incapptic Connect.", artifact.getName()));
 
-        for(ArtifactConfig ac: getArtifactConfigList()) {
-            try {
-                byte[] bytes;
-                FilePath artifact = getArtifact(build, ac.getName(), listener.getLogger());
-                outputUtil.info(String.format(
-                        "Artifact %s being sent to Incapptic Connect.", artifact.getName()));
+            String ident = String.format("artifact-%s", getAppId());
+            File tmp = File.createTempFile(ident, "tmp");
 
-                String ident = String.format("artifact-%s", ac.getAppId());
-                File tmp = File.createTempFile(ident, "tmp");
-
-                try(OutputStream os = new FileOutputStream(tmp)) {
-                    artifact.copyTo(os);
-                }
-                try(InputStream is = new FileInputStream(tmp)) {
-                    bytes = IOUtils.toByteArray(is);
-                }
-
-                RequestBody rb = RequestBody.create(MEDIA_TYPE, bytes);
-                multipart.addFormDataPart(ident, artifact.getName(), rb);
-
-
-            } catch (MultipleArtifactsException e) {
-                outputUtil.error(String.format(
-                        "Multiple artifacts found for name [%s].", ac.getName()));
-            } catch (ArtifactsNotFoundException e) {
-                outputUtil.error(String.format(
-                        "No artifacts found for name [%s].", ac.getName()));
-            } catch (InterruptedException e) {
-                outputUtil.error("Interrupted.");
+            try(OutputStream os = new FileOutputStream(tmp)) {
+                artifact.copyTo(os);
+            }
+            try(InputStream is = new FileInputStream(tmp)) {
+                bytes = IOUtils.toByteArray(is);
             }
 
+            RequestBody rb = RequestBody.create(MEDIA_TYPE, bytes);
+            multipart.addFormDataPart(ident, artifact.getName(), rb);
+
+        } catch (MultipleArtifactsException e) {
+            outputUtil.error(String.format(
+                    "Multiple artifacts found for name [%s].", getMask()));
+            return;
+        } catch (ArtifactsNotFoundException e) {
+            outputUtil.error(String.format(
+                    "No artifacts found for name [%s].", getMask()));
+            return;
+        } catch (InterruptedException e) {
+            outputUtil.error("Interrupted.");
+            return;
         }
 
         Request.Builder builder = new Request.Builder();
-        builder.addHeader(TOKEN_HEADER_NAME, token);
+        builder.addHeader(TOKEN_HEADER_NAME, getToken());
         builder.url(url);
         builder.post(multipart.build());
 
@@ -145,23 +178,26 @@ public class ConnectNotifier extends Recorder implements Serializable {
                 String body = IOUtils.toString(response.body().byteStream(), "UTF-8");
                 outputUtil.error(String.format(
                         "Endpoint %s replied with code %d and message [%s].",
-                        url, response.code(), body));
+                        getUrl(), response.code(), body));
             } else {
                 outputUtil.error(String.format(
                         "Endpoint %s replied with code %d.",
-                        url, response.code()));
+                        getUrl(), response.code()));
             }
         } else {
             outputUtil.success("All artifacts sent to Connect");
         }
+    }
 
+
+    @Override
+    public boolean perform(AbstractBuild<?,?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
+        perform(build, build.getWorkspace(), launcher, listener);
         return true;
     }
 
-    private FilePath getArtifact(AbstractBuild<?, ?> build, String glob, PrintStream logger)
+    private FilePath getArtifact(FilePath workspace, String glob, PrintStream logger)
             throws MultipleArtifactsException, ArtifactsNotFoundException, IOException, InterruptedException {
-        FilePath workspace = build.getWorkspace();
-
         PathMatcher matcher = FileSystems.getDefault().getPathMatcher(String.format("glob:%s", glob));
         List<FilePath> artifacts = new ArrayList<>();
         getArtifacts(workspace, "", matcher, artifacts, logger);
@@ -191,7 +227,9 @@ public class ConnectNotifier extends Recorder implements Serializable {
         }
     }
 
+
     @Extension(ordinal=-1)
+    @Symbol("uploadToIncappticConnect")
     public static final class DescriptorImpl
             extends BuildStepDescriptor<Publisher> { // Publisher because Notifiers are a type of publisher
 
@@ -217,48 +255,5 @@ public class ConnectNotifier extends Recorder implements Serializable {
         }
     }
 
-    public static class ArtifactConfig extends AbstractDescribableImpl<ArtifactConfig> implements Serializable {
-        private static final long serialVersionUID = 1L;
-
-        private String name;
-        private String appId;
-
-        @DataBoundConstructor
-        public ArtifactConfig(String name, String appId) {
-            this.name = name;
-            this.appId = appId;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public String getAppId() {
-            return appId;
-        }
-
-        public void setAppId(String appId) {
-            this.appId = appId;
-        }
-
-        @Extension
-        public static class DescriptorImpl extends Descriptor<ArtifactConfig> {
-            @Override
-            public String getDisplayName() { return ""; }
-
-            public static final UrlValidator URL_VALIDATOR = new UrlValidator(new String[] {"https", "http"});
-
-            public FormValidation doCheckUrl(@QueryParameter String value) {
-                if (!URL_VALIDATOR.isValid(value)) {
-                    return FormValidation.error("Invalid URL");
-                }
-                return FormValidation.ok();
-            }
-        }
-    }
 }
 
