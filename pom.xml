@@ -9,7 +9,7 @@
     <relativePath />
   </parent>
   <groupId>com.incapptic.plugins</groupId>
-  <artifactId>connect-uploader</artifactId>
+  <artifactId>incapptic-connect-uploader</artifactId>
   <version>1.2</version>
   <packaging>hpi</packaging>
 
@@ -32,7 +32,7 @@
 
   </properties>
 
-  <name>Connect upload plugin</name>
+  <name>incapptic connect uploader plugin</name>
   <description>Uploads build artifacts to Incapptic Connect.</description>
 
   <!-- The default licence for Jenkins OSS Plugins is MIT. Substitute for the applicable one if needed. -->
@@ -97,6 +97,6 @@
 
 
   <scm>
-    <tag>connect-uploader-1.2</tag>
+    <tag>incapptic-connect-uploader-1.2</tag>
   </scm>
 </project>
