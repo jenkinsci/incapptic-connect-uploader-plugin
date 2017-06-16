@@ -192,7 +192,11 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
 
     @Override
     public boolean perform(AbstractBuild<?,?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
-        perform(build, build.getWorkspace(), launcher, listener);
+        FilePath workspace = build.getWorkspace();
+        if (workspace == null) {
+            return false;
+        }
+        perform(build, workspace, launcher, listener);
         return true;
     }
 
