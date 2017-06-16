@@ -106,7 +106,12 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
         OutputUtils outputUtil = OutputUtils.getLoggerForStream(taskListener.getLogger());
 
         outputUtil.info("-----* Connect plugin is processing build artifacts *-----");
-        if (run.getResult() != null && run.getResult().isWorseOrEqualTo(Result.FAILURE)) {
+
+        Result result = run.getResult();
+        if (result == null) {
+            return;
+        }
+        if (result.isWorseOrEqualTo(Result.FAILURE)) {
             outputUtil.error("Cannot send artifacts from failed build.");
             return;
         }
