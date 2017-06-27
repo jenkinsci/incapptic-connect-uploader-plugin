@@ -9,7 +9,7 @@
   </parent>
   <groupId>com.incapptic.plugins</groupId>
   <artifactId>incapptic-connect-uploader</artifactId>
-  <version>1.2-SNAPSHOT</version>
+  <version>1.3-SNAPSHOT</version>
   <packaging>hpi</packaging>
 
   <properties>
@@ -50,13 +50,11 @@
     </developer>
   </developers>
 
-  <!-- Assuming you want to host on @jenkinsci:
   <scm>
     <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
     <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection>
-    <appId>http://github.com/jenkinsci/${project.artifactId}-plugin</appId>
+    <tag>incapptic-connect-uploader-1.2</tag>
   </scm>
-   -->
   <repositories>
     <repository>
       <id>repo.jenkins-ci.org</id>
@@ -93,9 +91,4 @@
     </dependency>
 
   </dependencies>
-
-
-  <scm>
-    <tag>incapptic-connect-uploader-1.2</tag>
-  </scm>
 </project>
