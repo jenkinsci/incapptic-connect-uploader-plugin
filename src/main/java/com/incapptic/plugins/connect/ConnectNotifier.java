@@ -2,37 +2,30 @@ package com.incapptic.plugins.connect;
 
 import com.squareup.okhttp.*;
 import hudson.Extension;
-import hudson.ExtensionPoint;
 import hudson.FilePath;
 import hudson.Launcher;
+import hudson.ProxyConfiguration;
 import hudson.model.*;
-import hudson.tasks.*;
+import hudson.tasks.BuildStepDescriptor;
+import hudson.tasks.BuildStepMonitor;
+import hudson.tasks.Publisher;
+import hudson.tasks.Recorder;
 import hudson.util.FormValidation;
+import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.validator.routines.UrlValidator;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
-import sun.security.ssl.SSLSocketFactoryImpl;
 
 import javax.annotation.Nonnull;
-import javax.net.ssl.*;
 import java.io.*;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.net.UnknownHostException;
+import java.net.Proxy;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -95,44 +88,51 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
         return null;
     }
 
+    private OkHttpClient getHttpClient(String host, OutputUtils outputUtil) {
+        OkHttpClient okHttpClient = new OkHttpClient();
+        Jenkins instance = Jenkins.getInstance();
 
-    @Override
-    public BuildStepMonitor getRequiredMonitorService() {
-        return BuildStepMonitor.NONE;
+        if (instance != null) {
+            ProxyConfiguration proxyConfiguration = instance.proxy;
+            if (proxyConfiguration != null) {
+                Proxy proxy = proxyConfiguration.createProxy(host);
+                okHttpClient.setProxy(proxy);
+                outputUtil.info("Proxy connection configured.");
+            }
+        }
+        return okHttpClient;
     }
 
-    @Override
-    public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath filePath, @Nonnull Launcher launcher, @Nonnull TaskListener taskListener) throws InterruptedException, IOException {
-        OutputUtils outputUtil = OutputUtils.getLoggerForStream(taskListener.getLogger());
-
-        outputUtil.info("-----* Connect plugin is processing build artifacts *-----");
-
+    private boolean validate(@Nonnull Run<?, ?> run, OutputUtils outputUtil) {
         Result result = run.getResult();
         if (result == null) {
-            return;
+            return false;
         }
         if (result.isWorseOrEqualTo(Result.FAILURE)) {
             outputUtil.error("Cannot send artifacts from failed build.");
-            return;
+            return false;
         }
 
         if (getAppId() == null) {
             outputUtil.error("No appId parameter provided.");
-            return;
+            return false;
         }
         if (StringUtils.isEmpty(getMask())) {
             outputUtil.error("No mask parameter provided.");
-            return;
+            return false;
         }
         if (StringUtils.isEmpty(getToken(run))) {
             outputUtil.error("No token parameter provided.");
-            return;
+            return false;
         }
         if (StringUtils.isEmpty(getUrl())) {
             outputUtil.error("No url parameter provided.");
-            return;
+            return false;
         }
+        return true;
+    }
 
+    private MultipartBuilder getMultipartBuilder(@Nonnull FilePath filePath, @Nonnull TaskListener taskListener, OutputUtils outputUtil) {
         MultipartBuilder multipart = new MultipartBuilder();
         multipart.type(MultipartBuilder.FORM);
 
@@ -154,27 +154,52 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
 
             RequestBody rb = RequestBody.create(MEDIA_TYPE, bytes);
             multipart.addFormDataPart(ident, artifact.getName(), rb);
-
+            return multipart;
         } catch (MultipleArtifactsException e) {
             outputUtil.error(String.format(
                     "Multiple artifacts found for name [%s].", getMask()));
-            return;
+            return null;
         } catch (ArtifactsNotFoundException e) {
             outputUtil.error(String.format(
                     "No artifacts found for name [%s].", getMask()));
-            return;
+            return null;
+        } catch (IOException e) {
+            outputUtil.error(String.format(
+                    "Could not read attachments for name [%s].", getMask()));
+            return null;
         } catch (InterruptedException e) {
             outputUtil.error("Interrupted.");
+            return null;
+        }
+    }
+
+    @Override
+    public BuildStepMonitor getRequiredMonitorService() {
+        return BuildStepMonitor.NONE;
+    }
+
+    @Override
+    public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath filePath, @Nonnull Launcher launcher, @Nonnull TaskListener taskListener) throws InterruptedException, IOException {
+        OutputUtils outputUtil = OutputUtils.getLoggerForStream(taskListener.getLogger());
+        outputUtil.info("-----* Connect plugin is processing build artifacts *-----");
+
+        if (!validate(run, outputUtil)) {
             return;
         }
+
+        MultipartBuilder multipartBuilder = getMultipartBuilder(filePath, taskListener, outputUtil);
+        if (multipartBuilder == null) {
+            outputUtil.error("No attachments created.");
+            return;
+        }
+
+        OkHttpClient client = getHttpClient(url, outputUtil);
 
         Request.Builder builder = new Request.Builder();
         builder.addHeader(TOKEN_HEADER_NAME, getToken());
         builder.url(url);
-        builder.post(multipart.build());
-
+        builder.post(multipartBuilder.build());
         Request request = builder.build();
-        OkHttpClient client = new OkHttpClient();
 
         Response response = client.newCall(request).execute();
 
@@ -193,7 +218,6 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
             outputUtil.success("All artifacts sent to Connect");
         }
     }
-
 
     @Override
     public boolean perform(AbstractBuild<?,?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
@@ -236,7 +260,6 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
         }
     }
 
-
     @Extension(ordinal=-1)
     @Symbol("uploadToIncappticConnect")
     public static final class DescriptorImpl
@@ -263,6 +286,4 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
             return FormValidation.ok();
         }
     }
-
 }
-
