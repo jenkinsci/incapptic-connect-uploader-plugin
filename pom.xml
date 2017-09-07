@@ -28,14 +28,19 @@
     <commons-validator.version>1.4.0</commons-validator.version>
     <okhttp.version>2.7.5</okhttp.version>
     <jenkins-plugins.version>1.6</jenkins-plugins.version>
-
   </properties>
 
   <name>incapptic connect uploader plugin</name>
   <description>Uploads build artifacts to Incapptic Connect.</description>
+  <url>https://wiki.jenkins-ci.org/display/JENKINS/incapptic+connect+uploader</url>
+  <inceptionYear>2017</inceptionYear>
+
+  <organization>
+    <name>Incapptic</name>
+    <url>https://incapptic.net/</url>
+  </organization>
 
   <!-- The default licence for Jenkins OSS Plugins is MIT. Substitute for the applicable one if needed. -->
-
   <licenses>
     <license>
       <name>MIT License</name>
