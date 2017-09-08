@@ -56,4 +56,45 @@ a post build action with parameters:
 
 provided. They have the same meaning as in the pipeline plugin.
 
+# Packaging, development and distribution #
+
+This is short summary of the following manuals:
+* [Plugin tutorial](https://wiki.jenkins.io/display/JENKINS/Plugin+tutorial)
+* [Making the plugin compatible with pipelines](https://github.com/jenkinsci/pipeline-plugin/blob/master/DEVGUIDE.md)
+* [Hosting account](https://wiki.jenkins.io/display/JENKINS/User+Account+on+Jenkins)
+* [Hosting plugins](https://wiki.jenkins.io/display/JENKINS/Hosting+Plugins)
+* [Releasing]([https://wiki.jenkins.io/display/JENKINS/Hosting+Plugins#HostingPlugins-Releasingtojenkins-ci.org)
+* [FAQ](https://wiki.jenkins-ci.org/display/JENKINS/Hosting+Plugins#HostingPlugins-Workingaroundcommonissues)
+
+## Packaging ##
+
+Compiling the plugin requires `mvn` intallation on top of `jdk 1.8`. To build a plugin, run `mvn install`. 
+This will create the file `./target/incapptic-connect-uploader.jar` that you can deploy to Jenkins using
+`Advanced` tab in `Manage plugins` section of your Jenkins installation.
+
+## Development ##
+
+This plugin supports both pipeline and notifier modes. Entrypoints for development are `perform` methods:
+```java
+public boolean perform(AbstractBuild<?,?> build, Launcher launcher, BuildListener listener) 
+    throws IOException, InterruptedException
+```
+is the entrypoint for pipeline plugin, while
+```java
+public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath filePath, @Nonnull Launcher launcher, 
+    @Nonnull TaskListener taskListener) throws InterruptedException, IOException
+```
+is used by `Notifier plugin`.
+
+## Distribution
+
+Distribution of Jenkins plugin to official repositories requires:
+* jenkins-ci.org account,
+* upload permissions, granted by contribution to `https://github.com/jenkins-infra/repository-permissions-updater`,
+* proper plugin release to SNAPSHOT repository by means of `mvn deploy` command,
+  which might require passing jenkins account username and encrypted password; this does not 
+  require upload permissions from the point above,
+* proper plugin release to RELEASE repository by means of `mvn release:prepare release:perform` command, 
+  which might require passing jenkins account username and encrypted password as well.
+
 ### *incapptic Connect GmbH*
