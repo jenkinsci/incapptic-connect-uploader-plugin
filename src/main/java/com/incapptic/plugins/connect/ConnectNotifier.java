@@ -105,14 +105,10 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
 
     private boolean validate(@Nonnull Run<?, ?> run, OutputUtils outputUtil) {
         Result result = run.getResult();
-        if (result == null) {
-            return false;
-        }
-        if (result.isWorseOrEqualTo(Result.FAILURE)) {
+        if (result != null && result.isWorseOrEqualTo(Result.FAILURE)) {
             outputUtil.error("Cannot send artifacts from failed build.");
             return false;
         }
-
         if (getAppId() == null) {
             outputUtil.error("No appId parameter provided.");
             return false;
