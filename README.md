@@ -1,8 +1,8 @@
 # incapptic Connect Uploader Plugin
 
-Integrate the incapptic Connect platform with Jenkins. Upload artifacts automatically to the incapptic Connect platform after each successful output from Jenkins CI.
+This plugin integrates the incapptic Connect platform with Jenkins. Artifacts are automatically uploaded to the incapptic Connect platform after each successful output from Jenkins CI.
 
-# Usage - pipeline plugin #
+# Usage - Pipeline Plugin #
 
 
 In order to make use of pipeline plugin, the Jenkinsfile should
@@ -28,33 +28,32 @@ The plugin parameter has precedence over the project parameter.
 
 ## Parameters ##
 
-### url ###
+#### url ###
 This parameter should point to incapptic Connects' upload service, 
-typically with the path value `/apps/upload-artifact.` 
+typically with the path value `/apps/upload-artifact.`
 
-### token ###
+#### token ###
 The personal token configured in incapptic Connects' administration panel. 
 
-### appId ###
+#### appId ###
 The (numerically valued) ID of the application that you 
 are uploading artifacts to. This application must have its API enabled 
 through incapptic Connects' admin interface. 
 
-### mask ###
+#### mask ###
 Used to specify the file location of an artifact to be sent to the incapptic
  Connect service. This can simply be an absolute path but can
  also include expandable wildcard patterns.
 
-# Usage - standard plugin #
+# Usage - Standard Plugin #
 
-Standard plugin configurations need to specify 
-a post build action with parameters: 
-* url,
-* token,
-* appId,
+Standard plugin configurations need to specify a post build action with parameters:
+* url
+* token
+* appId
 * mask
 
-provided. They have the same meaning as in the pipeline plugin.
+They have the same meaning as in the pipeline plugin.
 
 # Packaging, development and distribution #
 
@@ -97,4 +96,4 @@ Distribution of Jenkins plugin to official repositories requires:
 * proper plugin release to RELEASE repository by means of `mvn release:prepare release:perform` command, 
   which might require passing jenkins account username and encrypted password as well.
 
-### *incapptic Connect GmbH*
+*incapptic Connect GmbH*
