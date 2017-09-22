@@ -9,7 +9,7 @@
   </parent>
   <groupId>com.incapptic.plugins</groupId>
   <artifactId>incapptic-connect-uploader</artifactId>
-  <version>1.11-SNAPSHOT</version>
+  <version>1.11</version>
   <packaging>hpi</packaging>
 
   <properties>
@@ -62,7 +62,7 @@
   <scm>
     <connection>scm:git:https://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
     <developerConnection>scm:git:https://github.com/jenkinsci/${project.artifactId}-plugin.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>incapptic-connect-uploader-1.11</tag>
   </scm>
   <repositories>
     <repository>
