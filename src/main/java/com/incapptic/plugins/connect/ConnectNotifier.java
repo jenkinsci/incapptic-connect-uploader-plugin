@@ -104,27 +104,30 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
     }
 
     private boolean validate(@Nonnull Run<?, ?> run, OutputUtils outputUtil) {
+        outputUtil.info("### Incapptic Connect Jenkins Validation starting... ");
         Result result = run.getResult();
         if (result != null && result.isWorseOrEqualTo(Result.FAILURE)) {
-            outputUtil.error("Cannot send artifacts from failed build.");
+            outputUtil.error("@@@ Cannot send artifacts from failed build.");
             return false;
         }
         if (getAppId() == null) {
-            outputUtil.error("No appId parameter provided.");
+            outputUtil.error("@@@ No appId parameter provided.");
             return false;
         }
         if (StringUtils.isEmpty(getMask())) {
-            outputUtil.error("No mask parameter provided.");
+            outputUtil.error("@@@ No mask parameter provided.");
             return false;
         }
         if (StringUtils.isEmpty(getToken(run))) {
-            outputUtil.error("No token parameter provided.");
+            outputUtil.error("@@@ No token parameter provided.");
             return false;
         }
         if (StringUtils.isEmpty(getUrl())) {
-            outputUtil.error("No url parameter provided.");
+            outputUtil.error("@@@ No url parameter provided.");
             return false;
         }
+        outputUtil.success("Incapptic Connect Uploader plugin successfully validated AppId, Token, " +
+                "URL and Binary ");
         return true;
     }
 
@@ -136,7 +139,7 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
             byte[] bytes;
             FilePath artifact = getArtifact(filePath, getMask(), taskListener.getLogger());
             outputUtil.info(String.format(
-                    "Artifact %s being sent to Incapptic Connect.", artifact.getName()));
+                    "### Artifact %s being sent to Incapptic Connect. ", artifact.getName()));
 
             String ident = String.format("artifact-%s", getAppId());
             File tmp = File.createTempFile(ident, "tmp");
@@ -164,7 +167,7 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
                     "Could not read attachments for name [%s].", getMask()));
             return null;
         } catch (InterruptedException e) {
-            outputUtil.error("Interrupted.");
+            outputUtil.error("@@@ Interrupted.");
             return null;
         }
     }
@@ -177,26 +180,34 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
     @Override
     public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath filePath, @Nonnull Launcher launcher, @Nonnull TaskListener taskListener) throws InterruptedException, IOException {
         OutputUtils outputUtil = OutputUtils.getLoggerForStream(taskListener.getLogger());
-        outputUtil.info("-----* Connect plugin is processing build artifacts *-----");
+        outputUtil.info("### Connect plugin is processing build artifacts ");
 
         if (!validate(run, outputUtil)) {
             return;
         }
-
+        outputUtil.info(String.format("### Copying binary to folder: %s ", filePath.absolutize().getRemote()));
         MultipartBuilder multipartBuilder = getMultipartBuilder(filePath, taskListener, outputUtil);
         if (multipartBuilder == null) {
-            outputUtil.error("No attachments created.");
+            outputUtil.error("@@@ No attachments created.");
             return;
         }
 
+        outputUtil.success(String.format("Successfully binary to copied to folder: %s ", filePath.absolutize().getRemote()));
+
+        outputUtil.info("### Creating upload client ");
         OkHttpClient client = getHttpClient(url, outputUtil);
 
+        outputUtil.success("Successfully created upload client ");
+
         Request.Builder builder = new Request.Builder();
+        outputUtil.info("### Constructing Upload Request ");
         builder.addHeader(TOKEN_HEADER_NAME, getToken());
         builder.url(url);
         builder.post(multipartBuilder.build());
         Request request = builder.build();
+        outputUtil.success("Successfully Constructed Upload Request ");
 
+        outputUtil.info("### Executing Upload Request ");
         Response response = client.newCall(request).execute();
 
         if(!response.isSuccessful()) {
@@ -211,6 +222,8 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
                         getUrl(), response.code()));
             }
         } else {
+            outputUtil.success("Successfully Executed Upload Request ");
+            outputUtil.success(response.body().string());
             outputUtil.success("All artifacts sent to Connect");
         }
     }
