@@ -27,6 +27,7 @@ public class OutputUtils {
         this.printStream = printStream;
     }
 
+    public PrintStream getPrintStream(){ return this.printStream; }
 
     private void print(String prefix, String message) {
         printStream.println(String.format("%s %s", prefix, message));

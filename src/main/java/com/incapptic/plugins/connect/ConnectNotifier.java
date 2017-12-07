@@ -1,6 +1,7 @@
 package com.incapptic.plugins.connect;
 
 import com.squareup.okhttp.*;
+import com.squareup.okhttp.internal.framed.Header;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
@@ -94,10 +95,21 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
 
         if (instance != null) {
             ProxyConfiguration proxyConfiguration = instance.proxy;
-            if (proxyConfiguration != null) {
+            if (proxyConfiguration != null) {outputUtil.info(String.format("### Proxy test url: %s", proxyConfiguration.getTestUrl()));
+                outputUtil.info(String.format("### Proxy Encrypted Password: %s", proxyConfiguration.getEncryptedPassword()));
+                //outputUtil.info(String.format("### Proxy Password: %s", proxyConfiguration.getPassword()));
+                outputUtil.info(String.format("### Proxy UserName: %s", proxyConfiguration.getUserName()));
+                outputUtil.info(String.format("### Proxy No Proxy Patterns: %s", proxyConfiguration.getNoProxyHostPatterns().toString()));
+                outputUtil.info(String.format("### Proxy Port: %s", String.valueOf(proxyConfiguration.port)));
+                outputUtil.info(String.format("### Proxy Name: %s", proxyConfiguration.name));
+                outputUtil.info(String.format("### Proxy No Proxy Host: %s", proxyConfiguration.noProxyHost));
+                outputUtil.info(String.format("### Proxy Config String: %s", proxyConfiguration.toString()));
+
                 Proxy proxy = proxyConfiguration.createProxy(host);
                 okHttpClient.setProxy(proxy);
                 outputUtil.info("Proxy connection configured.");
+            } else {
+                outputUtil.info("@@@ JENKINS INSTANCE HAS NO PROXY INFORMATION !!!");
             }
         }
         return okHttpClient;
@@ -179,7 +191,7 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
 
     @Override
     public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath filePath, @Nonnull Launcher launcher, @Nonnull TaskListener taskListener) throws InterruptedException, IOException {
-        OutputUtils outputUtil = OutputUtils.getLoggerForStream(taskListener.getLogger());
+        final OutputUtils outputUtil = OutputUtils.getLoggerForStream(taskListener.getLogger());
         outputUtil.info("### Connect plugin is processing build artifacts ");
 
         if (!validate(run, outputUtil)) {
@@ -192,7 +204,7 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
             return;
         }
 
-        outputUtil.success(String.format("Successfully binary to copied to folder: %s ", filePath.absolutize().getRemote()));
+        outputUtil.success(String.format("Successfully coppied binary to folder: %s ", filePath.absolutize().getRemote()));
 
         outputUtil.info("### Creating upload client ");
         OkHttpClient client = getHttpClient(url, outputUtil);
@@ -205,10 +217,28 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
         builder.url(url);
         builder.post(multipartBuilder.build());
         Request request = builder.build();
+
         outputUtil.success("Successfully Constructed Upload Request ");
+        for(String name: request.headers().names()){
+            outputUtil.info(String.format("Request Header with Name: %s and Value: %s", name, request.header(name)));
+        }
+        outputUtil.info(String.format("Request Body: %s", request.body().toString()));
 
         outputUtil.info("### Executing Upload Request ");
-        Response response = client.newCall(request).execute();
+        Response response = null;
+        try {
+            response = client.newCall(request).execute();
+        } catch (IOException e) {
+            outputUtil.error(String.format("SOMETHING WENT WRONG!!! HERE IS THE MESSAGE: %s", e.getMessage()));
+            outputUtil.error(String.format("SOMETHING WENT WRONG!!! HERE IS THE LOCALIZED MESSAGE: %s", e.getLocalizedMessage()));
+            outputUtil.error(String.format("SOMETHING WENT WRONG!!! HERE IS THE TOSTRING: %s", e.toString()));
+            e.printStackTrace(outputUtil.getPrintStream());
+        }
+
+        if(response == null) {
+            outputUtil.error("NULL RESPONSE OBTAINED, RETURNING!!!");
+
+        }
 
         if(!response.isSuccessful()) {
             if (response.code() < 500) {
