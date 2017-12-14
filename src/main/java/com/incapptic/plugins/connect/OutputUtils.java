@@ -11,6 +11,7 @@ public class OutputUtils {
     public static final String ERROR   = "[Error]  ";
     public static final String INFO    = "[Info]   ";
     public static final String SUCCESS = "[Success]";
+    public static final String VERBOSE = "[Extra Info]";
 
     private final PrintStream printStream;
 
@@ -35,6 +36,12 @@ public class OutputUtils {
 
     void info(String message) {
         print(INFO, message);
+    }
+
+    void verbose(String message, Boolean verbose) {
+        if(verbose){
+            print(VERBOSE, message);
+        }
     }
 
     void error(String message) {

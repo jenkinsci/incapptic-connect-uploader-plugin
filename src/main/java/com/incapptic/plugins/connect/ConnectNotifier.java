@@ -1,7 +1,7 @@
 package com.incapptic.plugins.connect;
 
 import com.squareup.okhttp.*;
-import com.squareup.okhttp.internal.framed.Header;
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
@@ -43,14 +43,18 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
     private String url;
     private Integer appId;
     private String mask;
+    private Boolean useMasterProxy;
+    private Boolean verboseLogging;
 
     // Fields in config.jelly must match the parameter names in the "DataBoundConstructor"
     @DataBoundConstructor
-    public ConnectNotifier(String token, String url, Integer appId, String mask) {
+    public ConnectNotifier(String token, String url, Integer appId, String mask, Boolean useMasterProxy, Boolean verboseLogging) {
         this.token = token;
         this.url = url;
         this.appId = appId;
         this.mask = mask;
+        this.useMasterProxy = useMasterProxy;
+        this.verboseLogging = verboseLogging;
     }
 
     public String getToken() {
@@ -62,6 +66,14 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
     }
 
     public Integer getAppId() { return appId; }
+
+    public Boolean getUseMasterProxy() {
+        return useMasterProxy;
+    }
+
+    public Boolean getVerboseLogging() {
+        return verboseLogging;
+    }
 
     public String getMask() { return mask; }
 
@@ -76,10 +88,10 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
     }
 
     private Object getParameterValue(@Nonnull Run<?, ?> run, String name) {
-        for(Action ac: run.getAllActions()) {
+        for (Action ac : run.getAllActions()) {
             if (ac instanceof ParametersAction) {
                 ParametersAction pac = (ParametersAction) ac;
-                for(ParameterValue pav: pac.getParameters()) {
+                for (ParameterValue pav : pac.getParameters()) {
                     if (name != null && name.equals(pav.getName())) {
                         return pav.getValue();
                     }
@@ -94,48 +106,55 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
         Jenkins instance = Jenkins.getInstance();
 
         if (instance != null) {
-            ProxyConfiguration proxyConfiguration = instance.proxy;
-            if (proxyConfiguration != null) {outputUtil.info(String.format("### Proxy test url: %s", proxyConfiguration.getTestUrl()));
-                outputUtil.info(String.format("### Proxy Encrypted Password: %s", proxyConfiguration.getEncryptedPassword()));
-                //outputUtil.info(String.format("### Proxy Password: %s", proxyConfiguration.getPassword()));
-                outputUtil.info(String.format("### Proxy UserName: %s", proxyConfiguration.getUserName()));
-                outputUtil.info(String.format("### Proxy No Proxy Patterns: %s", proxyConfiguration.getNoProxyHostPatterns().toString()));
-                outputUtil.info(String.format("### Proxy Port: %s", String.valueOf(proxyConfiguration.port)));
-                outputUtil.info(String.format("### Proxy Name: %s", proxyConfiguration.name));
-                outputUtil.info(String.format("### Proxy No Proxy Host: %s", proxyConfiguration.noProxyHost));
-                outputUtil.info(String.format("### Proxy Config String: %s", proxyConfiguration.toString()));
+            if (getUseMasterProxy()) {
+                outputUtil.error("Using Jenkins Master proxy settings");
+                ProxyConfiguration proxyConfiguration = instance.proxy;
+                if (proxyConfiguration != null) {
+                    Boolean verboseLog = getVerboseLogging();
+                    outputUtil.verbose(String.format("Proxy test url: %s", proxyConfiguration.getTestUrl()), verboseLog);
+                    outputUtil.verbose(String.format("Proxy Encrypted Password: %s", proxyConfiguration.getEncryptedPassword()), verboseLog);
+                    //outputUtil.info(String.format("Proxy Password: %s", proxyConfiguration.getPassword()));
+                    outputUtil.verbose(String.format("Proxy UserName: %s", proxyConfiguration.getUserName()), verboseLog);
+                    outputUtil.verbose(String.format("Proxy No Proxy Patterns: %s", proxyConfiguration.getNoProxyHostPatterns().toString()), verboseLog);
+                    outputUtil.verbose(String.format("Proxy Port: %s", String.valueOf(proxyConfiguration.port)), verboseLog);
+                    outputUtil.verbose(String.format("Proxy Name: %s", proxyConfiguration.name), verboseLog);
+                    outputUtil.verbose(String.format("Proxy No Proxy Host: %s", proxyConfiguration.noProxyHost), verboseLog);
+                    outputUtil.verbose(String.format("Proxy Config String: %s", proxyConfiguration.toString()), verboseLog);
 
-                Proxy proxy = proxyConfiguration.createProxy(host);
-                okHttpClient.setProxy(proxy);
-                outputUtil.info("Proxy connection configured.");
+                    Proxy proxy = proxyConfiguration.createProxy(host);
+                    okHttpClient.setProxy(proxy);
+                    outputUtil.info("Proxy connection configured.");
+                } else {
+                    outputUtil.info("Jenkins Master instance HAS NO PROXY INFORMATION !!!");
+                }
             } else {
-                outputUtil.info("@@@ JENKINS INSTANCE HAS NO PROXY INFORMATION !!!");
+                outputUtil.info("Ignoring the proxy settings");
             }
         }
         return okHttpClient;
     }
 
     private boolean validate(@Nonnull Run<?, ?> run, OutputUtils outputUtil) {
-        outputUtil.info("### Incapptic Connect Jenkins Validation starting... ");
+        outputUtil.info("Incapptic Connect Jenkins Validation starting... ");
         Result result = run.getResult();
         if (result != null && result.isWorseOrEqualTo(Result.FAILURE)) {
-            outputUtil.error("@@@ Cannot send artifacts from failed build.");
+            outputUtil.error("Cannot send artifacts from failed build.");
             return false;
         }
         if (getAppId() == null) {
-            outputUtil.error("@@@ No appId parameter provided.");
+            outputUtil.error("No appId parameter provided.");
             return false;
         }
         if (StringUtils.isEmpty(getMask())) {
-            outputUtil.error("@@@ No mask parameter provided.");
+            outputUtil.error("No mask parameter provided.");
             return false;
         }
         if (StringUtils.isEmpty(getToken(run))) {
-            outputUtil.error("@@@ No token parameter provided.");
+            outputUtil.error("No token parameter provided.");
             return false;
         }
         if (StringUtils.isEmpty(getUrl())) {
-            outputUtil.error("@@@ No url parameter provided.");
+            outputUtil.error("No url parameter provided.");
             return false;
         }
         outputUtil.success("Incapptic Connect Uploader plugin successfully validated AppId, Token, " +
@@ -151,15 +170,15 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
             byte[] bytes;
             FilePath artifact = getArtifact(filePath, getMask(), taskListener.getLogger());
             outputUtil.info(String.format(
-                    "### Artifact %s being sent to Incapptic Connect. ", artifact.getName()));
+                    "Artifact %s being sent to Incapptic Connect. ", artifact.getName()));
 
             String ident = String.format("artifact-%s", getAppId());
             File tmp = File.createTempFile(ident, "tmp");
 
-            try(OutputStream os = new FileOutputStream(tmp)) {
+            try (OutputStream os = new FileOutputStream(tmp)) {
                 artifact.copyTo(os);
             }
-            try(InputStream is = new FileInputStream(tmp)) {
+            try (InputStream is = new FileInputStream(tmp)) {
                 bytes = IOUtils.toByteArray(is);
             }
 
@@ -179,7 +198,7 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
                     "Could not read attachments for name [%s].", getMask()));
             return null;
         } catch (InterruptedException e) {
-            outputUtil.error("@@@ Interrupted.");
+            outputUtil.error("Interrupted.");
             return null;
         }
     }
@@ -192,74 +211,78 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
     @Override
     public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath filePath, @Nonnull Launcher launcher, @Nonnull TaskListener taskListener) throws InterruptedException, IOException {
         final OutputUtils outputUtil = OutputUtils.getLoggerForStream(taskListener.getLogger());
-        outputUtil.info("### Connect plugin is processing build artifacts ");
+        Boolean verboseLog = getVerboseLogging();
+        outputUtil.info("Connect plugin is processing build artifacts ");
 
         if (!validate(run, outputUtil)) {
             return;
         }
-        outputUtil.info(String.format("### Copying binary to folder: %s ", filePath.absolutize().getRemote()));
+        outputUtil.verbose(String.format("Copying binary to folder: %s ", filePath.absolutize().getRemote()), verboseLog);
         MultipartBuilder multipartBuilder = getMultipartBuilder(filePath, taskListener, outputUtil);
         if (multipartBuilder == null) {
-            outputUtil.error("@@@ No attachments created.");
+            outputUtil.error("No attachments created.");
             return;
         }
 
-        outputUtil.success(String.format("Successfully coppied binary to folder: %s ", filePath.absolutize().getRemote()));
+        outputUtil.verbose(String.format("Successfully coppied binary to folder: %s ", filePath.absolutize().getRemote()), verboseLog);
 
-        outputUtil.info("### Creating upload client ");
+        outputUtil.verbose("Creating upload client ", verboseLog);
         OkHttpClient client = getHttpClient(url, outputUtil);
 
-        outputUtil.success("Successfully created upload client ");
+        outputUtil.verbose("Successfully created upload client ", verboseLog);
 
         Request.Builder builder = new Request.Builder();
-        outputUtil.info("### Constructing Upload Request ");
+        outputUtil.verbose("Constructing Upload Request ", verboseLog);
         builder.addHeader(TOKEN_HEADER_NAME, getToken());
         builder.url(url);
         builder.post(multipartBuilder.build());
         Request request = builder.build();
 
-        outputUtil.success("Successfully Constructed Upload Request ");
-        for(String name: request.headers().names()){
-            outputUtil.info(String.format("Request Header with Name: %s and Value: %s", name, request.header(name)));
+        outputUtil.verbose("Successfully Constructed Upload Request ", verboseLog);
+        for (String name : request.headers().names()) {
+            outputUtil.verbose(String.format("Request Head: %s parsed", name), verboseLog);
+            //outputUtil.info(String.format("Request Header with Name: %s and Value: %s", name, request.header(name)));
         }
-        outputUtil.info(String.format("Request Body: %s", request.body().toString()));
+        outputUtil.verbose(String.format("Request Body: %s", request.body().toString()), verboseLog);
 
-        outputUtil.info("### Executing Upload Request ");
+        outputUtil.info("Executing Upload Request ");
         Response response = null;
         try {
             response = client.newCall(request).execute();
         } catch (IOException e) {
-            outputUtil.error(String.format("SOMETHING WENT WRONG!!! HERE IS THE MESSAGE: %s", e.getMessage()));
-            outputUtil.error(String.format("SOMETHING WENT WRONG!!! HERE IS THE LOCALIZED MESSAGE: %s", e.getLocalizedMessage()));
-            outputUtil.error(String.format("SOMETHING WENT WRONG!!! HERE IS THE TOSTRING: %s", e.toString()));
+            outputUtil.verbose(String.format("SOMETHING WENT WRONG!!! HERE IS THE MESSAGE: %s", e.getMessage()), verboseLog);
+            outputUtil.verbose(String.format("SOMETHING WENT WRONG!!! HERE IS THE LOCALIZED MESSAGE: %s", e.getLocalizedMessage()), verboseLog);
+            outputUtil.verbose(String.format("SOMETHING WENT WRONG!!! HERE IS THE TOSTRING: %s", e.toString()), verboseLog);
             e.printStackTrace(outputUtil.getPrintStream());
+            throw new java.lang.Error("Error executing request to incapptic Connect.");
         }
 
-        if(response == null) {
+        if (response == null) {
             outputUtil.error("NULL RESPONSE OBTAINED, RETURNING!!!");
-
         }
 
-        if(!response.isSuccessful()) {
+        if (!response.isSuccessful()) {
             if (response.code() < 500) {
                 String body = IOUtils.toString(response.body().byteStream(), "UTF-8");
                 outputUtil.error(String.format(
                         "Endpoint %s replied with code %d and message [%s].",
                         getUrl(), response.code(), body));
+                throw new java.lang.Error("Error while uploading to incapptic Connect");
             } else {
                 outputUtil.error(String.format(
                         "Endpoint %s replied with code %d.",
                         getUrl(), response.code()));
+                throw new java.lang.Error("Error while uploading to incapptic Connect");
             }
         } else {
-            outputUtil.success("Successfully Executed Upload Request ");
+            outputUtil.verbose("Successfully Executed Upload Request ", verboseLog);
             outputUtil.success(response.body().string());
             outputUtil.success("All artifacts sent to Connect");
         }
     }
 
     @Override
-    public boolean perform(AbstractBuild<?,?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
+    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
         FilePath workspace = build.getWorkspace();
         if (workspace == null) {
             return false;
@@ -287,7 +310,7 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
     private void getArtifacts(FilePath parent, String base, PathMatcher matcher, List<FilePath> artifacts, PrintStream logger)
             throws IOException, InterruptedException {
 
-        for(FilePath child: parent.list()) {
+        for (FilePath child : parent.list()) {
             if (child.isDirectory()) {
                 getArtifacts(child, String.format("%s/%s", base, child.getName()), matcher, artifacts, logger);
             } else {
@@ -299,7 +322,7 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
         }
     }
 
-    @Extension(ordinal=-1)
+    @Extension(ordinal = -1)
     @Symbol("uploadToIncappticConnect")
     public static final class DescriptorImpl
             extends BuildStepDescriptor<Publisher> { // Publisher because Notifiers are a type of publisher
