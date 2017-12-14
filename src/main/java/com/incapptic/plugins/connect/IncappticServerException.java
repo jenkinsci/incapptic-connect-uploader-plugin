@@ -1,6 +1,8 @@
 package com.incapptic.plugins.connect;
 
-public class IncappticServerException extends Exception {
+import java.io.IOException;
+
+public class IncappticServerException extends IOException {
     public IncappticServerException() {
     }
 

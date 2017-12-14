@@ -107,7 +107,7 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
 
         if (instance != null) {
             if (getUseMasterProxy()) {
-                outputUtil.error("Using Jenkins Master proxy settings");
+                outputUtil.info("Using Jenkins Master proxy settings");
                 ProxyConfiguration proxyConfiguration = instance.proxy;
                 if (proxyConfiguration != null) {
                     Boolean verboseLog = getVerboseLogging();
@@ -254,7 +254,7 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
             outputUtil.verbose(String.format("SOMETHING WENT WRONG!!! HERE IS THE LOCALIZED MESSAGE: %s", e.getLocalizedMessage()), verboseLog);
             outputUtil.verbose(String.format("SOMETHING WENT WRONG!!! HERE IS THE TOSTRING: %s", e.toString()), verboseLog);
             e.printStackTrace(outputUtil.getPrintStream());
-            throw new java.lang.Error("Error executing request to incapptic Connect.");
+            throw new IncappticServerException("Error executing request to incapptic Connect.");
         }
 
         if (response == null) {
@@ -267,12 +267,12 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
                 outputUtil.error(String.format(
                         "Endpoint %s replied with code %d and message [%s].",
                         getUrl(), response.code(), body));
-                throw new java.lang.Error("Error while uploading to incapptic Connect");
+                throw new IncappticServerException("Error while uploading to incapptic Connect");
             } else {
                 outputUtil.error(String.format(
                         "Endpoint %s replied with code %d.",
                         getUrl(), response.code()));
-                throw new java.lang.Error("Error while uploading to incapptic Connect");
+                throw new IncappticServerException("Error while uploading to incapptic Connect");
             }
         } else {
             outputUtil.verbose("Successfully Executed Upload Request ", verboseLog);
@@ -287,7 +287,15 @@ public class ConnectNotifier extends Recorder implements Serializable, SimpleBui
         if (workspace == null) {
             return false;
         }
-        perform(build, workspace, launcher, listener);
+        try {
+            perform(build, workspace, launcher, listener);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            throw e;
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw e;
+        }
         return true;
     }
 
